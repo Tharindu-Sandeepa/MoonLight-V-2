@@ -6,12 +6,10 @@ import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import CssBaseline from '@mui/material/CssBaseline';
 import TextField from '@mui/material/TextField';
-
 import FormHelperText from '@mui/material/FormHelperText';
 import Link from '@mui/material/Link';
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
-
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import Paper from '@mui/material/Paper';
@@ -19,8 +17,8 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Cookies from 'js-cookie';
-
 import CircularProgress from '@mui/material/CircularProgress'; // Import CircularProgress
+import GoogleIcon from '@mui/icons-material/Google'; // Import Google Icon
 
 const defaultTheme = createTheme();
 
@@ -106,6 +104,11 @@ function Login({ onLogin }) {
         }
     };
 
+    const handleGoogleLogin = () => {
+        // Redirect to backend Google auth endpoint
+        window.location.href = 'http://localhost:5002/api/auth/google';
+    };
+
     return (
         <ThemeProvider theme={defaultTheme}>
             <Container component="main" maxWidth="xs">
@@ -133,15 +136,15 @@ function Login({ onLogin }) {
                             >
                                 <Grid container direction="column" justifyContent="space-between" alignItems="center" style={{ height: '100%' }}>
                                     <Box>
-                                    <Typography component="h1" variant="h7" align="center" sx={{ marginTop: 10,mb:6, color: 'white' }}>
-                                            Welcome 
+                                        <Typography component="h1" variant="h7" align="center" sx={{ marginTop: 10, mb: 6, color: 'white' }}>
+                                            Welcome
                                         </Typography>
                                     </Box>
                                     <Box>
                                         <img src={logo} alt="Company Logo" style={{ height: '120px', display: 'block', margin: 'auto' }} />
                                     </Box>
                                     <Box>
-                                    <Typography component="h1" variant="h5" align="center" sx={{ marginTop: 10,mb:6,  }}>
+                                        <Typography component="h1" variant="h5" align="center" sx={{ marginTop: 10, mb: 6 }}>
                                             Login to your Account
                                         </Typography>
                                     </Box>
@@ -158,16 +161,16 @@ function Login({ onLogin }) {
                                     padding: 4,
                                 }}
                             >
-                               <Typography
-    component="h1"
-    variant="h7"
-    sx={{
-        fontWeight: 'bold', // Use 'bold' for bold text
-        color: 'gray', // Use 'gray' for gray color
-    }}
->
-    Sign In
-</Typography>
+                                <Typography
+                                    component="h1"
+                                    variant="h7"
+                                    sx={{
+                                        fontWeight: 'bold',
+                                        color: 'gray',
+                                    }}
+                                >
+                                    Sign In
+                                </Typography>
 
                                 <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
                                     {error && <FormHelperText error>{error}</FormHelperText>}
@@ -204,7 +207,7 @@ function Login({ onLogin }) {
                                                     onClick={handleForgotPassword}
                                                     color="primary"
                                                     variant="text"
-                                                    disabled={loading} // Disable the button while loading
+                                                    disabled={loading}
                                                 >
                                                     {loading ? (
                                                         <CircularProgress size={16} color="inherit" />
@@ -231,13 +234,31 @@ function Login({ onLogin }) {
                                                     backgroundColor: '#0d47a1',
                                                 },
                                             }}
-                                            disabled={loading} // Disable the button while loading
+                                            disabled={loading}
                                         >
                                             {loading ? (
                                                 <CircularProgress size={24} color="inherit" />
                                             ) : (
                                                 'Login'
                                             )}
+                                        </Button>
+                                    </Box>
+
+                                    {/* Google Login Button */}
+                                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                                        <Button
+                                            variant="contained"
+                                            startIcon={<GoogleIcon />}
+                                            onClick={handleGoogleLogin}
+                                            sx={{
+                                                backgroundColor: '#4285F4',
+                                                '&:hover': { backgroundColor: '#357ae8' },
+                                                color: 'white',
+                                                borderRadius: '40px',
+                                                width: '80%',
+                                            }}
+                                        >
+                                            Sign in with Google
                                         </Button>
                                     </Box>
 

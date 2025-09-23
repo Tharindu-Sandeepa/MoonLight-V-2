@@ -52,6 +52,37 @@ exports.register = async (req, res) => {
   }
 };
 
+// exports.login = async (req, res) => {
+//   const { email, password } = req.body;
+
+//   try {
+//     const user = await User.findOne({ email });
+
+//     if (!user) {
+//       return res.status(401).json({ message: 'Invalid credentials' });
+//     }
+
+//     const isMatch = await user.matchPassword(password);
+
+//     if (!isMatch) {
+//       return res.status(401).json({ message: 'Invalid credentials' });
+//     }
+
+//     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+//       expiresIn: '7d',
+//     });
+
+//     res.json({
+//       token,
+//       username: user.username,
+//       type: user.type
+//     });
+//   } catch (error) {
+//     console.error('Login failed:', error);
+//     res.status(500).json({ message: 'Server Error' });
+//   }
+// };
+
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -60,6 +91,10 @@ exports.login = async (req, res) => {
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    if (!user.password) {
+      return res.status(401).json({ message: 'This account uses Google login. Please sign in with Google.' });
     }
 
     const isMatch = await user.matchPassword(password);
@@ -82,8 +117,6 @@ exports.login = async (req, res) => {
     res.status(500).json({ message: 'Server Error' });
   }
 };
-
-
 
 exports.logout = (req, res) => {
     

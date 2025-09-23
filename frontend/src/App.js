@@ -59,6 +59,7 @@ import OTPVerificationPage from './components/userComponents/OTPVerificationPage
 import PasswordUpdatePage from './components/userComponents/PasswordUpdatePage';
 import LoadingScreen from './components/LoadingScreen';
 import MyOrders from './components/orderComponents/MyOrders';
+import AuthCallback from './components/userComponents/AuthCallback';
 
 const App = () => {
     const [loggedIn, setLoggedIn] = useState(false);
@@ -171,6 +172,7 @@ const App = () => {
                             <Route path="/itemlist" element={<Itemlist />} />
                             <Route path="/item/:itemId" element={<ItemPage/>}/>
                             <Route path="/MyOrders" element={<MyOrders/>}/>
+                            <Route path="/auth/callback" element={<AuthCallback />} />
                         </Routes>
                     </AuthProvider>
                     <Footer />
