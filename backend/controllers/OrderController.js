@@ -1,14 +1,16 @@
 const Orders = require('../models/Order');
-const bcrypt = require('bcrypt');
+const AppError = require('../utils/AppError');
+
+
 //getOrders
 const getOrders = (req,res,next)=>{
     Orders.find()
     .then(response=>{
         res.json({response})
     })
-    .catch(erorr=>{
-        res.json({erorr: error})
-    })
+    .catch(error=>{
+        next(new AppError('Failed to retrieve orders.', 500));
+    });
 };
 
 // addOrder
@@ -32,7 +34,7 @@ const addOrder = (req, res, next) => {
             res.json({ response });
         })
         .catch(error => {
-            res.json({ error: error });
+            next(new AppError('Failed to add new order.', 500));
         });
 };
 
@@ -58,7 +60,7 @@ const updateOrder = async (req, res, next) => {
             res.json({ response });
         })
         .catch(error => {
-            res.status(500).json({ error: error.message });
+            next(new AppError('Failed to update order.', 500));
         });
 
 };
@@ -72,7 +74,7 @@ const deleteOrder = (req, res, next) => {
             res.json({ response });
         })
         .catch(error => {
-            res.json({ error: error });
+            next(new AppError('Failed to delete order.', 500));
         });
 };
 
@@ -80,8 +82,3 @@ exports.getOrders=getOrders;
 exports.addOrder =addOrder;
 exports.updateOrder=updateOrder;
 exports.deleteOrder=deleteOrder;
-
-
-
-
-
