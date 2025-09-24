@@ -16,6 +16,8 @@ const router6 = require('./routes/materialRouter');
 const useRouter7 = require('./routes/useMaterialRouter');
 const employeeRoutes = require('./routes/employee.route');
 const emailRoutes = require('./routes/emailRoutes');
+const AppError = require('./utils/AppError');
+const errorHandler = require('./controllers/errorHandler'); // Import the new error handler
 require('dotenv').config({ path: './.env' });
 const passport = require('./config/passport');
 const jwt = require('jsonwebtoken'); // Import jwt module
@@ -50,7 +52,7 @@ app.get('/api/auth/google',
 
 app.get('/api/auth/google/callback',
   passport.authenticate('google', { failureRedirect: '/api/login', session: false }),
-  (req, res) => {
+  (req, res, next) => {
     try {
       // Generate JWT
       const token = jwt.sign({ userId: req.user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -58,8 +60,8 @@ app.get('/api/auth/google/callback',
       // Redirect to frontend with token in query param (secure in production with HTTPS)
       res.redirect(`http://localhost:3000/auth/callback?token=${token}&username=${req.user.username}&type=${req.user.type}`);
     } catch (error) {
-      console.error('Error generating JWT:', error);
-      res.status(500).send('Internal server error');
+      // Pass the error to the global error handler
+      next(error);
     }
   }
 );
@@ -91,6 +93,16 @@ app.use('/api', router6);
 app.use('/api', useRouter7);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/email', emailRoutes);
+
+// Unhandled routes handler
+app.all('*', (req, res, next) => {
+  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+});
+
+// THIS IS THE GLOBAL ERROR HANDLER
+// It must be placed after all other app.use() and app.all() calls
+app.use(errorHandler);
+
 
 const PORT = process.env.PORT || 5002;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
