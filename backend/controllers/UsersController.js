@@ -1,14 +1,16 @@
 const Users = require('../models/User');
 const bcrypt = require('bcrypt');
 const { sendWelcomeEmail } = require('./emailController');
+const AppError = require('../utils/AppError');
+
 //getUsers
 const getUsers = (req,res,next)=>{
     Users.find()
     .then(response=>{
         res.json({response})
     })
-    .catch(erorr=>{
-        res.json({erorr: error})
+    .catch(error=>{
+        next(new AppError('Failed to retrieve users.', 500));
     })
 };
 
@@ -26,27 +28,25 @@ const addUser = (req, res, next) => {
         type: type
     });
 
-
-
     user.save()
         .then(response => {
             res.json({ response });
         })
         .catch(error => {
-            res.json({ error: error });
+            next(new AppError('Failed to add user.', 500));
         });
  // Send a welcome email to the user
  sendWelcomeEmail({ recipient_email: email, username: username });
-
 };
 
 const updateUser = async (req, res, next) => {
-    const { id, name, email, tp, username, password, type } = req.body;
+    try {
+        const { id, name, email, tp, username, password, type } = req.body;
 
         // Hash the new password
         const hashedPassword = await bcrypt.hash(password, 10); // 10 is the salt rounds
 
-        Users.updateOne(
+        const response = await Users.updateOne(
             { _id: id },
             {
                 $set: {
@@ -58,17 +58,12 @@ const updateUser = async (req, res, next) => {
                     type: type
                 },
             }
-        )
-        .then(response => {
-            res.json({ response });
-        })
-        .catch(error => {
-            res.status(500).json({ error: error.message });
-        });
-   
+        );
+        res.json({ response });
+    } catch (error) {
+        next(new AppError('Failed to update user.', 500));
+    }
 };
-
-
 
 // delete user
 const deleteUser = (req, res, next) => {
@@ -79,13 +74,12 @@ const deleteUser = (req, res, next) => {
             res.json({ response });
         })
         .catch(error => {
-            res.json({ error: error });
+            next(new AppError('Failed to delete user.', 500));
         });
 };
 
 
 //changepassword
-
 const changepassword = async (req, res, next) => {
     try {
         // Destructure email and password from req.body
@@ -96,7 +90,7 @@ const changepassword = async (req, res, next) => {
 
         // Check if user exists
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return next(new AppError('User not found.', 404));
         }
 
         // Hash the new password
@@ -113,7 +107,7 @@ const changepassword = async (req, res, next) => {
     } catch (error) {
         // Handle errors
         console.error(error);
-        res.status(500).json({ error: error.message });
+        next(new AppError('Failed to change password.', 500));
     }
 };
 
@@ -124,8 +118,3 @@ exports.getUsers=getUsers;
 exports.addUser =addUser;
 exports.updateUser=updateUser;
 exports.deleteUser=deleteUser;
-
-
-
-
-
