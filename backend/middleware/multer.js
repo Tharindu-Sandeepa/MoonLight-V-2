@@ -1,17 +1,38 @@
-const multer = require("multer");
-const path = require("path");
-const imagesPath = path.join(__dirname, "../../Frontend/src/images/");
+const multer = require('multer');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 
+const imagesPath = path.join(__dirname, '../../Frontend/src/images/');
+
+// Define allowed MIME types for images
+const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif'];
+
+// Configure Multer storage
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
+  destination: (req, file, cb) => {
     cb(null, imagesPath);
   },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now();
-    cb(null, uniqueSuffix + file.originalname);
-  },
+  filename: (req, file, cb) => {
+    // Generate a unique filename to prevent overwrites and traversal
+    const ext = path.extname(file.originalname).toLowerCase();
+    const safeFileName = `${uuidv4()}${ext}`;
+    cb(null, safeFileName);
+  }
 });
 
-const upload = multer({ storage: storage });
+// File filter to validate MIME type
+const fileFilter = (req, file, cb) => {
+  if (!allowedImageTypes.includes(file.mimetype)) {
+    return cb(new Error('Only JPEG, PNG, and GIF images are allowed'), false);
+  }
+  cb(null, true);
+};
+
+// Multer configuration
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: fileFilter
+});
 
 module.exports = upload;

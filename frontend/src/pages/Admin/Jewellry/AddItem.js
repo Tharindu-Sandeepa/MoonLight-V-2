@@ -12,12 +12,8 @@ import { Select, MenuItem } from '@mui/material';
 
 const theme = createTheme({
   palette: {
-    primary: {
-      main: "#1976d2", // Blue color for primary
-    },
-    secondary: {
-      main: "#ffffff", // White color for secondary
-    },
+    primary: { main: "#1976d2" },
+    secondary: { main: "#ffffff" },
   },
 });
 
@@ -27,35 +23,39 @@ const AddItem = () => {
   const [type, setType] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
-  
-  const [errors, setErrors] = useState({}); // State for error messages
+  const [csrfToken, setCsrfToken] = useState('');
+  const [errors, setErrors] = useState({});
+  const [tokenError, setTokenError] = useState('');
+
+  // Allowed image MIME types
+  const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif'];
+
+  // Fetch CSRF token on component mount
+  useEffect(() => {
+    axios.get('http://localhost:5002/api/csrf-token', { withCredentials: true })
+      .then(res => {
+        setCsrfToken(res.data.csrfToken);
+        console.log('Fetched CSRF token:', res.data.csrfToken);
+      })
+      .catch(err => {
+        console.error('CSRF token fetch failed:', err.response?.data || err.message);
+        setTokenError('Failed to fetch CSRF token. Please refresh the page.');
+      });
+  }, []);
 
   // Validate form fields
   const validateForm = () => {
     const newErrors = {};
-    
     if (!image) {
       newErrors.image = "Please upload an image.";
+    } else if (!allowedImageTypes.includes(image.type)) {
+      newErrors.image = "Only JPEG, PNG, and GIF images are allowed.";
     }
-    
-    if (!name) {
-      newErrors.name = "Please enter a name.";
-    }
-    
-    if (!type) {
-      newErrors.type = "Please enter a type.";
-    }
-    
-    if (!price) {
-      newErrors.price = "Please enter a price.";
-    } else if (isNaN(price)) {
-      newErrors.price = "Price must be a number.";
-    }
-    
-    if (!description) {
-      newErrors.description = "Please enter a description.";
-    }
-    
+    if (!name) newErrors.name = "Please enter a name.";
+    if (!type) newErrors.type = "Please enter a type.";
+    if (!price) newErrors.price = "Please enter a price.";
+    else if (isNaN(price)) newErrors.price = "Price must be a number.";
+    if (!description) newErrors.description = "Please enter a description.";
     return newErrors;
   };
 
@@ -77,50 +77,47 @@ const AddItem = () => {
     formData.append("description", description);
 
     try {
-      await axios.post("http://localhost:5002/upload-image", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      await axios.post('http://localhost:5002/upload-image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'X-CSRF-Token': csrfToken
+        },
+        withCredentials: true,
       });
 
-      // Reset form fields and errors after successful submission
       setImage(null);
       setName("");
       setType("");
       setPrice("");
       setDescription("");
       setErrors({});
-      
-      // Refresh the image list after submission
+      console.log('Form submitted successfully');
     } catch (error) {
-      console.error(error);
+      console.error('Submission error:', error.response?.data || error.message);
+      setErrors({ form: 'Submission failed. Please try again.' });
     }
   };
 
   // Handle input changes
   const onInputChange = (e) => {
     const { name, value } = e.target;
-
     if (name === "image") {
-      setImage(e.target.files[0]);
+      const file = e.target.files[0];
+      if (file && !allowedImageTypes.includes(file.type)) {
+        setErrors({ ...errors, image: "Only JPEG, PNG, and GIF images are allowed." });
+        setImage(null);
+      } else {
+        setImage(file);
+      }
     } else {
       switch (name) {
-        case "name":
-          setName(value);
-          break;
-        case "type":
-          setType(value);
-          break;
-        case "price":
-          setPrice(value);
-          break;
-        case "description":
-          setDescription(value);
-          break;
-        default:
-          break;
+        case "name": setName(value); break;
+        case "type": setType(value); break;
+        case "price": setPrice(value); break;
+        case "description": setDescription(value); break;
+        default: break;
       }
     }
-
-    // Update errors as the user types
     const newErrors = validateForm();
     setErrors(newErrors);
   };
@@ -131,18 +128,23 @@ const AddItem = () => {
         <Typography variant="h4" color="primary" sx={{ mb: 2 }}>
           Add Image
         </Typography>
+        {tokenError && (
+          <Typography color="error" sx={{ mb: 2 }}>
+            {tokenError}
+          </Typography>
+        )}
         <form onSubmit={submitImage}>
           <Box sx={{ mb: 2 }}>
             <TextField
               type="file"
               name="image"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/gif"
               onChange={onInputChange}
               variant="outlined"
               fullWidth
               InputLabelProps={{ shrink: true }}
-              error={Boolean(errors.image)} // Show error state if there is an error
-              helperText={errors.image} // Display error message
+              error={Boolean(errors.image)}
+              helperText={errors.image}
             />
           </Box>
           <TextField
@@ -153,30 +155,29 @@ const AddItem = () => {
             variant="outlined"
             fullWidth
             sx={{ mb: 2 }}
-            error={Boolean(errors.name)} // Show error state if there is an error
-            helperText={errors.name} // Display error message
+            error={Boolean(errors.name)}
+            helperText={errors.name}
           />
-        <Select
-    name="type"
-    label="Type"
-    value={type}
-    onChange={onInputChange}
-    variant="outlined"
-    fullWidth
-    sx={{ mb: 2 }}
-    error={Boolean(errors.type)} // Show error state if there is an error
-    helperText={errors.type} // Display error message
-    displayEmpty
->
-    <MenuItem value="">Select Type</MenuItem>
-    <MenuItem value="Necklace">Necklace</MenuItem>
-    <MenuItem value="Ring">Ring</MenuItem>
-    <MenuItem value="Earring">Earring</MenuItem>
-    <MenuItem value="Bracelet">Bracelet</MenuItem>
-    <MenuItem value="Anklet">Anklet</MenuItem>
-    <MenuItem value="Other">Other</MenuItem>
-</Select>
-
+          <Select
+            name="type"
+            label="Type"
+            value={type}
+            onChange={onInputChange}
+            variant="outlined"
+            fullWidth
+            sx={{ mb: 2 }}
+            error={Boolean(errors.type)}
+            helperText={errors.type}
+            displayEmpty
+          >
+            <MenuItem value="">Select Type</MenuItem>
+            <MenuItem value="Necklace">Necklace</MenuItem>
+            <MenuItem value="Ring">Ring</MenuItem>
+            <MenuItem value="Earring">Earring</MenuItem>
+            <MenuItem value="Bracelet">Bracelet</MenuItem>
+            <MenuItem value="Anklet">Anklet</MenuItem>
+            <MenuItem value="Other">Other</MenuItem>
+          </Select>
           <TextField
             name="price"
             label="Price"
@@ -185,8 +186,8 @@ const AddItem = () => {
             variant="outlined"
             fullWidth
             sx={{ mb: 2 }}
-            error={Boolean(errors.price)} // Show error state if there is an error
-            helperText={errors.price} // Display error message
+            error={Boolean(errors.price)}
+            helperText={errors.price}
           />
           <TextField
             name="description"
@@ -198,17 +199,23 @@ const AddItem = () => {
             multiline
             rows={3}
             sx={{ mb: 2 }}
-            error={Boolean(errors.description)} // Show error state if there is an error
-            helperText={errors.description} // Display error message
+            error={Boolean(errors.description)}
+            helperText={errors.description}
           />
           <Button
             type="submit"
             variant="contained"
             color="primary"
             fullWidth
+            disabled={!csrfToken || tokenError || Boolean(errors.image)}
           >
             Submit
           </Button>
+          {errors.form && (
+            <Typography color="error" sx={{ mt: 2 }}>
+              {errors.form}
+            </Typography>
+          )}
         </form>
       </Box>
     </ThemeProvider>
