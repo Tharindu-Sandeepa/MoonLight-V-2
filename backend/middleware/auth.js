@@ -1,22 +1,57 @@
-const jwt = require('jsonwebtoken');
-const AppError = require('../utils/AppError');
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
 
-const auth = async (req, res, next) => {
+module.exports.verifyToken = function (req, res, next) {
+  const token = req.header("token");
+
+  if (!token) {
+    return res
+      .status(401)
+      .json({ success: false, message: "No token, authorization denied" });
+  }
+
+  if (!process.env.JWT_SECRET) {
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: "JWT secret is not set in environment variables",
+      });
+  }
+
   try {
-    const token = req.cookies.accessToken;
-    if (!token) {
-      console.log('No accessToken cookie found');
-      return next(new AppError('No token, authorization denied', 401));
-    }
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
-    console.log('Token verified:', decoded);
+
     next();
   } catch (error) {
-    console.error('Token verification failed:', error.message);
-    return next(new AppError('Invalid token', 401));
+    res.status(401).json({ success: false, message: "Invalid token" });
   }
 };
 
-module.exports = auth;
+// role based token verification middleware
+module.exports.verifyRole = function (allowedRoles) {
+  return function (req, res, next) {
+    const token = req.header("token");
+    if (!token) {
+      return res
+        .status(401)
+        .json({ success: false, message: "No token, authorization denied" });
+    }
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded;
+      if (!allowedRoles.includes(req.user.role)) {
+        return res
+          .status(403)
+          .json({
+            success: false,
+            message: "Access denied: insufficient permissions",
+          });
+      }
+      next();
+    } catch (error) {
+      res.status(401).json({ success: false, message: "Invalid token" });
+    }
+  };
+};
