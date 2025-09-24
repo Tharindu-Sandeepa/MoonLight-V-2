@@ -1,14 +1,15 @@
 const mongoose = require("mongoose");
+const AppError = require('../utils/AppError');
 require("../models/Jewllery");
 const Jewllery = mongoose.model("Jewllery");
 const fs = require("fs");
 const path = require("path");
 const imagesPath = path.join(__dirname, "../../Frontend/src/images/");
 
-exports.uploadImage = async (req, res) => {
+exports.uploadImage = async (req, res, next) => {
   const { name, type, price, description } = req.body;
   if (!req.file) {
-    return res.status(400).json({ error: "No image uploaded" });
+    return next(new AppError("No image uploaded", 400));
   }
   const imageName = req.file.filename;
 
@@ -22,26 +23,25 @@ exports.uploadImage = async (req, res) => {
     });
     res.json({ status: "ok" });
   } catch (error) {
-    console.error("Error uploading image:", error.message);
-    res.status(500).json({ error: "Failed to upload image", message: error.message });
+    next(new AppError("Failed to upload image", 500));
   }
 };
 
-exports.getImages = async (req, res) => {
+exports.getImages = async (req, res, next) => {
   try {
     const data = await Jewllery.find({});
     res.send({ status: "ok", data: data });
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch images", message: error.message });
+    next(new AppError("Failed to fetch images", 500));
   }
 };
 
-exports.deleteImage = async (req, res) => {
+exports.deleteImage = async (req, res, next) => {
   const { id } = req.params;
   try {
     const existingJewellery = await Jewllery.findById(id);
     if (!existingJewellery) {
-      return res.status(404).json({ error: "Item not found" });
+      return next(new AppError("Item not found", 404));
     }
     const imagePath = path.join(imagesPath, existingJewellery.image);
     if (fs.existsSync(imagePath)) {
@@ -50,19 +50,18 @@ exports.deleteImage = async (req, res) => {
     await Jewllery.findByIdAndDelete(id);
     res.json({ status: "ok" });
   } catch (error) {
-    console.error("Error deleting image:", error);
-    res.status(500).json({ error: "Failed to delete image", message: error.message });
+    next(new AppError("Failed to delete image", 500));
   }
 };
 
-exports.updateImage = async (req, res) => {
+exports.updateImage = async (req, res, next) => {
   const { name, type, price, description } = req.body;
   const { id } = req.params;
 
   try {
     const existingJewellery = await Jewllery.findById(id);
     if (!existingJewellery) {
-      return res.status(404).json({ error: "Item not found" });
+      return next(new AppError("Item not found", 404));
     }
 
     if (req.file) {
@@ -81,20 +80,19 @@ exports.updateImage = async (req, res) => {
     await existingJewellery.save();
     res.json({ status: "ok" });
   } catch (error) {
-    console.error("Error updating image:", error);
-    res.status(500).json({ error: "Failed to update image", message: error.message });
+    next(new AppError("Failed to update image", 500));
   }
 };
 
-exports.getItem = async (req, res) => {
+exports.getItem = async (req, res, next) => {
   const { id } = req.params;
   try {
     const item = await Jewllery.findById(id);
     if (!item) {
-      return res.status(404).json({ error: "Item not found" });
+      return next(new AppError("Item not found", 404));
     }
     res.json({ status: "ok", data: item });
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch item", message: error.message });
+    next(new AppError("Failed to fetch item", 500));
   }
 };

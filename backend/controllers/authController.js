@@ -1,17 +1,17 @@
-// controllers/authController.js
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { sendWelcomeEmail } = require('./emailController');
+const AppError = require('../utils/AppError');
 
-exports.register = async (req, res) => {
+exports.register = async (req, res, next) => {
   const { name, username, email, tp, password, type } = req.body;
 
   try {
     let user = await User.findOne({ email });
 
     if (user) {
-      return res.status(400).json({ message: 'User already exists' });
+      return next(new AppError('User already exists', 400));
     }
 
     user = new User({
@@ -63,28 +63,28 @@ exports.register = async (req, res) => {
     await sendWelcomeEmail({ recipient_email: email, username });
   } catch (error) {
     console.error('Registration failed:', error);
-    res.status(500).json({ message: 'Server Error' });
+    next(new AppError('Server Error', 500));
   }
 };
 
-exports.login = async (req, res) => {
+exports.login = async (req, res, next) => {
   const { email, password } = req.body;
 
   try {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return next(new AppError('Invalid credentials', 401));
     }
 
     if (!user.password) {
-      return res.status(401).json({ message: 'This account uses Google login. Please sign in with Google.' });
+      return next(new AppError('This account uses Google login. Please sign in with Google.', 401));
     }
 
     const isMatch = await user.matchPassword(password);
 
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return next(new AppError('Invalid credentials', 401));
     }
 
     // Generate access token (15 minutes)
@@ -122,15 +122,15 @@ exports.login = async (req, res) => {
     });
   } catch (error) {
     console.error('Login failed:', error);
-    res.status(500).json({ message: 'Server Error' });
+    next(new AppError('Server Error', 500));
   }
 };
 
-exports.refreshToken = async (req, res) => {
+exports.refreshToken = async (req, res, next) => {
   const refreshToken = req.cookies.refreshToken;
 
   if (!refreshToken) {
-    return res.status(401).json({ message: 'No refresh token provided' });
+    return next(new AppError('No refresh token provided', 401));
   }
 
   try {
@@ -140,7 +140,7 @@ exports.refreshToken = async (req, res) => {
     // Check if refresh token exists in the database
     const user = await User.findById(decoded.userId);
     if (!user || !user.refreshTokens.includes(refreshToken)) {
-      return res.status(403).json({ message: 'Invalid refresh token' });
+      return next(new AppError('Invalid refresh token', 403));
     }
 
     // Generate new access token
@@ -159,40 +159,45 @@ exports.refreshToken = async (req, res) => {
     res.json({ message: 'Token refreshed successfully' });
   } catch (error) {
     console.error('Token refresh failed:', error);
-    res.status(403).json({ message: 'Invalid or expired refresh token' });
+    next(new AppError('Invalid or expired refresh token', 403));
   }
 };
 
-exports.logout = async (req, res) => {
-  const refreshToken = req.cookies.refreshToken;
+exports.logout = async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
 
-  if (refreshToken) {
-    // Remove refresh token from the database
-    const user = await User.findOneAndUpdate(
-      { refreshTokens: refreshToken },
-      { $pull: { refreshTokens: refreshToken } },
-      { new: true }
-    );
+    if (refreshToken) {
+      // Remove refresh token from the database
+      await User.findOneAndUpdate(
+        { refreshTokens: refreshToken },
+        { $pull: { refreshTokens: refreshToken } },
+        { new: true }
+      );
+    }
+
+    // Clear cookies
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+
+    res.status(200).json({ message: 'Logout successful' });
+  } catch (error) {
+    console.error('Logout failed:', error);
+    next(new AppError('Server Error', 500));
   }
-
-  // Clear cookies
-  res.clearCookie('accessToken');
-  res.clearCookie('refreshToken');
-
-  res.status(200).json({ message: 'Logout successful' });
 };
 
-exports.getUserDetails = async (req, res) => {
+exports.getUserDetails = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.userId);
 
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return next(new AppError('User not found', 404));
     }
 
     res.json(user);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Server Error' });
+    next(new AppError('Server Error', 500));
   }
 };

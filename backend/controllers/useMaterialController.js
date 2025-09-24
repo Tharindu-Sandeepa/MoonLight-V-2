@@ -1,6 +1,5 @@
-
 const useMaterial = require('../models/useMaterialModel');
-
+const AppError = require('../utils/AppError');
 
 const getusemat = (req,res,next) => {
     useMaterial.find()
@@ -8,9 +7,8 @@ const getusemat = (req,res,next) => {
             res.json({response})
         })
         .catch(error => {
-            res.json({ error})
+            next(new AppError('Failed to retrieve used materials.', 500));
         });
-
 };
 
 const addusemat = (req,res,next) => {
@@ -21,17 +19,14 @@ const addusemat = (req,res,next) => {
         useWeight: req.body.useWeight,
         useDate: req.body.useDate,
         useReason: req.body.useReason,
-
     });
     usematerial.save()
         .then(response => {
             res.json({response})
         })
         .catch(error => {
-            res.json({ error})
+            next(new AppError('Failed to add used material.', 500));
         });
-
-
 }
 
 const updateusemat = (req,res,next) => {
@@ -47,31 +42,24 @@ const updateusemat = (req,res,next) => {
                 useReason: useReason
             }}
             )
-
         .then(response => {
             res.json({response})
         })
         .catch(error => {
-            res.json({ error})
+            next(new AppError('Failed to update used material.', 500));
         });
-
 }
 
 const deleteusemat = (req,res,next) =>{
     const useId = req.body.useId;
     useMaterial.deleteOne({ useId: useId})
-
         .then(response => {
             res.json({response})
         })
         .catch(error => {
-            res.json({ error})
+            next(new AppError('Failed to delete used material.', 500));
         });
 }
-
-        
-
-
 
 exports.getusemat = getusemat;
 exports.addusemat = addusemat;

@@ -3,15 +3,19 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { sendWelcomeEmail } = require('../controllers/emailController');  
+const AppError = require('../utils/AppError');
 
 passport.serializeUser((user, done) => {
   done(null, user.id);
 });
 
-passport.deserializeUser((id, done) => {
-  User.findById(id, (err, user) => {
-    done(err, user);
-  });
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (err) {
+    done(new AppError('Failed to deserialize user.', 500));
+  }
 });
 
 // Google Strategy
@@ -52,10 +56,9 @@ passport.use(new GoogleStrategy({
           });
         }
       }
-
       return done(null, user);
     } catch (err) {
-      return done(err);
+      return done(new AppError('Google authentication failed.', 500));
     }
   }
 ));

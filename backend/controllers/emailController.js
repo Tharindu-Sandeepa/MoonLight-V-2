@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-
+const AppError = require('../utils/AppError');
 
 function sendEmail({ recipient_email, OTP }) {
     return new Promise((resolve, reject) => {
@@ -98,20 +98,20 @@ function sendEmail({ recipient_email, OTP }) {
 
         transporter.sendMail(mailConfigs, (error, info) => {
             if (error) {
-                console.log(error);
-                return reject({ message: 'An error occurred' });
+                console.error(error);
+                return reject(new AppError('Failed to send email. Please check your email configuration.', 500));
             }
             return resolve({ message: 'Email sent successfully' });
         });
     });
 }
 
-const sendRecoveryEmail = async (req, res) => {
+const sendRecoveryEmail = async (req, res, next) => {
     try {
         const response = await sendEmail(req.body);
         res.status(200).send(response.message);
     } catch (error) {
-        res.status(500).send(error.message);
+        next(error); // Pass the AppError from the promise to the global handler
     }
 };
 
@@ -202,8 +202,8 @@ function sendWelcomeEmail({ recipient_email, username }) {
         // Send the email using the transporter and the email configurations
         transporter.sendMail(mailConfigs, (error, info) => {
             if (error) {
-                console.log(error);
-                return reject({ message: 'An error occurred' });
+                console.error(error);
+                return reject(new AppError('Failed to send email. Please check your email configuration.', 500));
             }
             return resolve({ message: 'Email sent successfully' });
         });
@@ -211,5 +211,6 @@ function sendWelcomeEmail({ recipient_email, username }) {
 };
 
 module.exports = {
-    sendRecoveryEmail,sendWelcomeEmail
+    sendRecoveryEmail,
+    sendWelcomeEmail
 };
