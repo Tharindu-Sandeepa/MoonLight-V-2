@@ -1,5 +1,6 @@
 const Gem = require('../models/gemModel');
 const AppError = require('../utils/AppError');
+const sanitize = require("mongo-sanitize");
 
 // Get gems
 const getGem = (req, res, next) => {
@@ -15,15 +16,32 @@ const getGem = (req, res, next) => {
 
 // Add gem function
 const addGem = (req, res, next) => {
+    const sanitizedBody = sanitize(req.body);
+    const { id, name, color, price, weight, category, voucherNo, supplierId } = sanitizedBody;
+
+    // Validate required fields
+    if (!id || !name || !color || !price || !weight || !category || !voucherNo || !supplierId) {
+        return next(new AppError('All fields are required.', 400));
+    }
+
+    // Validate numeric fields
+    if (typeof price !== 'number' || price <= 0) {
+        return next(new AppError('Price must be a positive number.', 400));
+    }
+
+    if (typeof weight !== 'number' || weight <= 0) {
+        return next(new AppError('Weight must be a positive number.', 400));
+    }
+
     const newGem = new Gem({
-        id: req.body.id,
-        name: req.body.name,
-        color : req.body.color,
-        price : req.body.price,
-        weight: req.body.weight,
-        category: req.body.category,
-        voucherNo: req.body.voucherNo,
-        supplierId: req.body.supplierId,
+        id: id,
+        name: name,
+        color: color,
+        price: price,
+        weight: weight,
+        category: category,
+        voucherNo: voucherNo,
+        supplierId: supplierId,
     });
 
     newGem.save()
@@ -38,9 +56,38 @@ const addGem = (req, res, next) => {
 
 // Update function
 const updateGem = (req, res, next) => {
-    const { id, name, color, price, weight, category, voucherNo, supplierId } = req.body;
-    Gem.updateOne({ id: id }, { $set: { name: name, color: color, price: price, weight: weight, category: category, voucherNo: voucherNo, supplierId: supplierId } })
+    const sanitizedBody = sanitize(req.body);
+    const { id, name, color, price, weight, category, voucherNo, supplierId } = sanitizedBody;
+
+    // Validate required ID field
+    if (!id) {
+        return next(new AppError('Gem ID is required.', 400));
+    }
+
+    // Validate numeric fields if provided
+    if (price && (typeof price !== 'number' || price <= 0)) {
+        return next(new AppError('Price must be a positive number.', 400));
+    }
+
+    if (weight && (typeof weight !== 'number' || weight <= 0)) {
+        return next(new AppError('Weight must be a positive number.', 400));
+    }
+
+    Gem.updateOne({ id: id }, { 
+        $set: { 
+            name: name, 
+            color: color, 
+            price: price, 
+            weight: weight, 
+            category: category, 
+            voucherNo: voucherNo, 
+            supplierId: supplierId 
+        } 
+    })
         .then(response => {
+            if (response.matchedCount === 0) {
+                return next(new AppError('Gem not found.', 404));
+            }
             res.json({ response });
         })
         .catch(error => {
@@ -51,9 +98,19 @@ const updateGem = (req, res, next) => {
 
 // Delete function
 const deleteGem = (req, res, next) => {
-    const id = req.body.id;
+    const sanitizedBody = sanitize(req.body);
+    const { id } = sanitizedBody;
+
+    // Validate required ID field
+    if (!id) {
+        return next(new AppError('Gem ID is required.', 400));
+    }
+
     Gem.deleteOne({ id: id })
         .then(response => {
+            if (response.deletedCount === 0) {
+                return next(new AppError('Gem not found.', 404));
+            }
             res.json({ response });
         })
         .catch(error => {
