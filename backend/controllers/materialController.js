@@ -1,5 +1,5 @@
-
 const Material = require('../models/materialModel');
+const AppError = require('../utils/AppError');
 
 
 const getmat = (req,res,next) => {
@@ -8,7 +8,7 @@ const getmat = (req,res,next) => {
             res.json({response})
         })
         .catch(error => {
-            res.json({ error})
+            next(new AppError('Failed to retrieve materials.', 500));
         });
 
 };
@@ -32,7 +32,7 @@ const addmat = (req,res,next) => {
             res.json({response})
         })
         .catch(error => {
-            res.json({ error})
+            next(new AppError('Failed to add material.', 500));
         });
 
 
@@ -60,7 +60,7 @@ const updatemat = (req,res,next) => {
             res.json({response})
         })
         .catch(error => {
-            res.json({ error})
+            next(new AppError('Failed to update material.', 500));
         });
 
 }
@@ -73,13 +73,11 @@ const deletemat = (req,res,next) =>{
             res.json({response})
         })
         .catch(error => {
-            res.json({ error})
+            next(new AppError('Failed to delete material.', 500));
         });
 }
 
         
-
-
 
 exports.getmat = getmat;
 exports.addmat = addmat;
