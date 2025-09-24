@@ -1,84 +1,108 @@
-const Orders = require('../models/Order');
-const AppError = require('../utils/AppError');
+const Orders = require("../models/Order");
+const sanitize = require("mongo-sanitize");
+const mongoose = require("mongoose");
 
-
-//getOrders
-const getOrders = (req,res,next)=>{
-    Orders.find()
-    .then(response=>{
-        res.json({response})
+// getOrders (unchanged, no direct input)
+const getOrders = (req, res, next) => {
+  Orders.find()
+    .then((response) => {
+      res.json({ response });
     })
-    .catch(error=>{
-        next(new AppError('Failed to retrieve orders.', 500));
+    .catch((error) => {
+      res.status(500).json({ error: error.message });
     });
 };
 
-// addOrder
+// addOrder: Sanitize and validate
 const addOrder = (req, res, next) => {
-    const { userID, orderID, items, total, amount, date, slip, status } = req.body;
+  const sanitizedBody = sanitize(req.body);
+  const { userID, orderID, items, total, amount, date, slip, status } =
+    sanitizedBody;
 
-    const order = new Orders({
-    
-        userID: userID,
-        orderID: orderID,
-        items: items,
-        total: total,
-        amount: amount,
-        date: date,
-        slip: slip,
-        status: status
+  // Validate inputs
+  if (!userID || typeof total !== "number" || !orderID || !date) {
+    return res.status(400).json({ error: "Invalid input" });
+  }
+
+  const order = new Orders({
+    userID,
+    orderID,
+    items,
+    total,
+    amount,
+    date,
+    slip,
+    status,
+  });
+
+  order
+    .save()
+    .then((response) => {
+      res.json({ response });
+    })
+    .catch((error) => {
+      res.status(500).json({ error: error.message });
     });
-
-    order.save()
-        .then(response => {
-            res.json({ response });
-        })
-        .catch(error => {
-            next(new AppError('Failed to add new order.', 500));
-        });
 };
 
+// updateOrder: Validate ObjectId and sanitize
 const updateOrder = async (req, res, next) => {
-    const { id, userID, orderID, items, total, amount, date, slip, status } = req.body;
+  const sanitizedBody = sanitize(req.body);
+  const { id, userID, orderID, items, total, amount, date, slip, status } =
+    sanitizedBody;
 
-        Orders.updateOne(
-            { _id: id },
-            {
-                $set: {
-                    userID: userID,
-                    orderID: orderID,
-                    items: items,
-                    total: total,
-                    amount: amount,
-                    date: date,
-                    slip: slip,
-                    status: status
-                },
-            }
-        )
-        .then(response => {
-            res.json({ response });
-        })
-        .catch(error => {
-            next(new AppError('Failed to update order.', 500));
-        });
+  // Validate ObjectId
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({ error: "Invalid ID format" });
+  }
 
+  try {
+    const response = await Orders.updateOne(
+      { _id: id },
+      {
+        $set: {
+          userID,
+          orderID,
+          items,
+          total,
+          amount,
+          date,
+          slip,
+          status,
+        },
+      }
+    );
+    if (response.matchedCount === 0) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    res.json({ response });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
-// delete order
-const deleteOrder = (req, res, next) => {
-    const { id } = req.body; // Retrieve _id from the request body
+// deleteOrder: Validate ObjectId and sanitize
+const deleteOrder = async (req, res, next) => {
+  const sanitizedBody = sanitize(req.body);
+  const { id } = sanitizedBody;
 
-    Orders.deleteOne({ _id: id }) // Use _id to delete the user
-        .then(response => {
-            res.json({ response });
-        })
-        .catch(error => {
-            next(new AppError('Failed to delete order.', 500));
-        });
+  // Validate ObjectId
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({ error: "Invalid ID format" });
+  }
+
+  try {
+    const response = await Orders.deleteOne({ _id: id });
+    if (response.deletedCount === 0) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    res.json({ response });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
-exports.getOrders=getOrders;
-exports.addOrder =addOrder;
-exports.updateOrder=updateOrder;
-exports.deleteOrder=deleteOrder;
+exports.getOrders = getOrders;
+exports.addOrder = addOrder;
+exports.updateOrder = updateOrder;
+exports.deleteOrder = deleteOrder;
