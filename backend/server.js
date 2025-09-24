@@ -1,8 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-dotenv.config({ path: './.env' });
-
 const dotenv = require('dotenv');
 const cookieParser = require('cookie-parser');
 const passport = require('./config/passport');
@@ -11,6 +9,7 @@ const AppError = require('./utils/AppError');
 const errorHandler = require('./controllers/errorHandler');
 
 // Load environment variables
+dotenv.config({ path: './.env' });
 
 // Debug environment variables
 console.log('Environment Variables:', {
