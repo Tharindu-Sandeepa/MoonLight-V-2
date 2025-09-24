@@ -1,6 +1,5 @@
-//const { response } = require('./app');
 const supOrder = require('../models/supOrder');
-
+const AppError = require('../utils/AppError');
 
 
 const getOrders = (req, res, next) => {
@@ -9,7 +8,7 @@ const getOrders = (req, res, next) => {
             res.json({ response })
         })
         .catch(error => {
-            res.json({ message: error })
+            next(new AppError('Failed to retrieve supplier orders.', 500));
         });
 };
 
@@ -30,7 +29,7 @@ const addsupOrder = (req, res, next) => {
             res.json({ response })
         })
         .catch(error => {
-            res.json({ message: error })
+            next(new AppError('Failed to add supplier order.', 500));
         });
 }
 
@@ -53,7 +52,7 @@ const updatesupOrder = (req, res, next) => {
         res.json({ response })
     })
     .catch(error => {
-        res.json({ message: error })
+        next(new AppError('Failed to update supplier order.', 500));
     });
 }
 
@@ -65,7 +64,7 @@ const deletesupOrder = (req, res, next) => {
             res.json({ response })
         })
         .catch(error => {
-            res.json({ message: error })
+            next(new AppError('Failed to delete supplier order.', 500));
         });
 }
 
@@ -74,4 +73,3 @@ exports.getOrders = getOrders;
 exports.addsupOrder = addsupOrder;
 exports.updatesupOrder = updatesupOrder;
 exports.deletesupOrder = deletesupOrder;
-
