@@ -1,18 +1,19 @@
 const Gem = require('../models/gemModel');
+const AppError = require('../utils/AppError');
 
-//get gems 
+// Get gems
 const getGem = (req, res, next) => {
-    Gem.find()        // find()- the method that dispatch the data from db. the same as SQL SELECT function
-        .then(response =>{  //promiss
-            res.json({ response})  // return as a JSON object
+    Gem.find()
+        .then(response => {
+            res.json({ response });
         })
         .catch(error => {
-            res.json({ error}) //assign the error to the message
-        })
+            // Pass the error to the global error handler
+            next(new AppError('Failed to retrieve gems from the database.', 500));
+        });
 };
 
-//add gem function
-
+// Add gem function
 const addGem = (req, res, next) => {
     const newGem = new Gem({
         id: req.body.id,
@@ -26,55 +27,42 @@ const addGem = (req, res, next) => {
     });
 
     newGem.save()
-        .then(response =>{  
-            res.json({ response})  
+        .then(response => {
+            res.json({ response });
         })
         .catch(error => {
-            res.json({ error}) 
+            // Pass the error to the global error handler
+            next(new AppError('Failed to add gem to the database.', 500));
         });
-}
+};
 
-//update function
-
+// Update function
 const updateGem = (req, res, next) => {
-    const  { id , name, color, price, weight, category ,voucherNo, supplierId}= req.body;
-    Gem.updateOne({id:id},{$set: {name:name, color:color, price:price, weight:weight, category:category,voucherNo:voucherNo, supplierId: supplierId  }})
-    .then(response =>{  
-        res.json({ response})  
-    })
-    .catch(error => {
-        res.json({ error}) 
-    });
+    const { id, name, color, price, weight, category, voucherNo, supplierId } = req.body;
+    Gem.updateOne({ id: id }, { $set: { name: name, color: color, price: price, weight: weight, category: category, voucherNo: voucherNo, supplierId: supplierId } })
+        .then(response => {
+            res.json({ response });
+        })
+        .catch(error => {
+            // Pass the error to the global error handler
+            next(new AppError('Failed to update gem.', 500));
+        });
+};
 
-}
-
-
-//delete function
-
+// Delete function
 const deleteGem = (req, res, next) => {
     const id = req.body.id;
-    Gem.deleteOne({id:id})
-    .then(response =>{  
-        res.json({ response})  
-    })
-    .catch(error => {
-        res.json({ error}) 
-    });
-
-    
-
-}
-
-
-
+    Gem.deleteOne({ id: id })
+        .then(response => {
+            res.json({ response });
+        })
+        .catch(error => {
+            // Pass the error to the global error handler
+            next(new AppError('Failed to delete gem.', 500));
+        });
+};
 
 exports.getGem = getGem;
 exports.addGem = addGem;
 exports.updateGem = updateGem;
 exports.deleteGem = deleteGem;
-
-
-
-
-
-
