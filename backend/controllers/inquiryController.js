@@ -1,5 +1,5 @@
 const Inquiry = require('../models/inquiriesModel');
-
+const AppError = require('../utils/AppError');
 
 // enter Inquiry
 const enterInquiry = (req, res, next) => {
@@ -15,8 +15,8 @@ const enterInquiry = (req, res, next) => {
             res.json({ response})  
         })
         .catch(error => {
-            res.json({ error}) 
-        })
+            next(new AppError('Failed to save inquiry.', 500));
+        });
 }
 
 //get
@@ -26,8 +26,8 @@ const getInquiry = (req, res, next) => {
             res.json({ response})  // return as a JSON object
         })
         .catch(error => {
-            res.json({ error}) //assign the error to the message
-        })
+            next(new AppError('Failed to retrieve inquiries.', 500));
+        });
 };
 //delete
 
@@ -38,12 +38,10 @@ const deleteInquiry= (req, res, next) => {
         res.json({ response})  
     })
     .catch(error => {
-        res.json({ error}) 
+        next(new AppError('Failed to delete inquiry.', 500));
     });
-
-    
-
 }
+
 exports.enterInquiry = enterInquiry;
 exports.getInquiry = getInquiry;
 exports.deleteInquiry = deleteInquiry;
