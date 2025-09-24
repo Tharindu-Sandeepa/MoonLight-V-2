@@ -2,12 +2,28 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-dotenv.config({ path: './.env' });
-
 const cookieParser = require('cookie-parser');
 const csurf = require('csurf');
-const passport = require('./config/passport');
 const jwt = require('jsonwebtoken');
+
+// Load environment variables as early as possible
+dotenv.config({ path: './.env' });
+
+// Debug environment variables
+console.log('Environment Variables:', {
+  NODE_ENV: process.env.NODE_ENV,
+  JWT_SECRET: !!process.env.JWT_SECRET,
+  JWT_REFRESH_SECRET: !!process.env.JWT_REFRESH_SECRET,
+  MONGODB_URI: !!process.env.MONGODB_URI,
+  GOOGLE_CLIENT_ID: !!process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: !!process.env.GOOGLE_CLIENT_SECRET,
+  PORT: process.env.PORT || 5002,
+});
+
+// Import modules that depend on environment variables
+const passport = require('./config/passport');
+const AppError = require('./utils/AppError');
+const errorHandler = require('./controllers/errorHandler');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -26,37 +42,20 @@ const useMaterialRouter = require('./routes/useMaterialRouter');
 const employeeRoutes = require('./routes/employee.route');
 const emailRoutes = require('./routes/emailRoutes');
 
-// Load environment variables
-
-// Debug environment variables
-console.log('Environment Variables:', {
-  NODE_ENV: process.env.NODE_ENV,
-  JWT_SECRET: !!process.env.JWT_SECRET,
-  JWT_REFRESH_SECRET: !!process.env.JWT_REFRESH_SECRET,
-  MONGODB_URI: !!process.env.MONGODB_URI,
-  GOOGLE_CLIENT_ID: !!process.env.GOOGLE_CLIENT_ID,
-  GOOGLE_CLIENT_SECRET: !!process.env.GOOGLE_CLIENT_SECRET,
-  PORT: process.env.PORT || 5002,
-});
-
 const app = express();
 
 // CSRF protection middleware
 const csurfProtection = csurf({
-  cookie: { httpOnly: true, secure: false, sameSite: 'strict' } // secure: true in production
+  cookie: { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' }
 });
 
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors({ credentials: true, origin: 'http://localhost:3000' }));
-app.use(cookieParser());
-
-// CSRF token endpoint with CSRF middleware
-app.get('/api/csrf-token', csurfProtection, (req, res) => {
-  res.json({ csrfToken: req.csrfToken() });
-});
-
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true,
+}));
 app.use(passport.initialize());
 
 // Clear residual cookies on every request
@@ -71,14 +70,11 @@ app.use((req, res, next) => {
 });
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('Failed to connect to MongoDB:', err));
 
-// Routes
+// Routes that do not require CSRF protection (GET requests, static files, etc.)
 app.use('/api', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/user', userRoutes);
@@ -96,15 +92,24 @@ app.use('/api/email', emailRoutes);
 // Jewellery and Image routes
 app.use('/', jewlleryRoutes);
 app.use('/get-images', jewlleryRoutes);
-app.use('/upload-image', csurfProtection, jewlleryRoutes);
-app.use('/update-image/:id', csurfProtection, jewlleryRoutes);
-app.use('/delete-image/:id', csurfProtection, jewlleryRoutes);
 app.use('/get-item/:id', jewlleryRoutes);
 app.use('/', imageRoutes);
 app.use('/gemget-images', imageRoutes);
+
+
+// Route to get a new CSRF token
+app.get('/api/csrf-token', csurfProtection, (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
+
+// Routes that require CSRF protection (POST, PUT, DELETE)
+app.use('/upload-image', csurfProtection, jewlleryRoutes);
+app.use('/update-image/:id', csurfProtection, jewlleryRoutes);
+app.use('/delete-image/:id', csurfProtection, jewlleryRoutes);
 app.use("/gemupload-image", csurfProtection, imageRoutes);
 app.use("/gemdelete-image/:id", csurfProtection, imageRoutes);
 app.use("/gemupdate-image/:id", csurfProtection, imageRoutes);
+
 
 // Google Auth Routes
 app.get('/api/auth/google',
@@ -114,7 +119,7 @@ app.get('/api/auth/google',
 // Google Auth Callback
 app.get('/api/auth/google/callback',
   passport.authenticate('google', { failureRedirect: '/api/login', session: false }),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const User = require('./models/User');
       const accessToken = jwt.sign({ userId: req.user._id }, process.env.JWT_SECRET, {
@@ -160,21 +165,21 @@ app.get('/api/auth/google/callback',
       res.redirect(`http://localhost:3000/auth/callback?username=${encodeURIComponent(req.user.username)}&type=${encodeURIComponent(req.user.type)}`);
     } catch (error) {
       console.error('Error in Google callback:', error);
-      res.status(500).send('Internal server error');
+      next(error); // Pass the error to our global handler
     }
   }
 );
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  if (err.code === 'EBADCSRFTOKEN') {
-    console.error('CSRF validation failed:', req.body, req.headers);
-    res.status(403).json({ error: 'Invalid CSRF token' });
-  } else {
-    console.error('Server error:', err.message);
-    res.status(500).json({ error: 'Server error', message: err.message });
-  }
+
+// Unhandled routes handler
+app.all('*', (req, res, next) => {
+  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
+
+// THIS IS THE GLOBAL ERROR HANDLER
+// It must be placed after all other app.use() and app.all() calls
+app.use(errorHandler);
+
 
 const PORT = process.env.PORT || 5002;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
