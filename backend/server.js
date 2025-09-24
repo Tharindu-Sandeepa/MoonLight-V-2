@@ -1,38 +1,40 @@
-// server.js
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+const cookieParser = require('cookie-parser');
+const csurf = require('csurf');
 const router = require('./routes/authRoutes');
-
 const router2 = require('./routes/usersRoutes');
-
 const jewlleryRoutes = require("./routes/jewlleryRoutes");
-
 const supListRoute = require('../backend/routes/supListRoute');
 const suproute = require('../backend/routes/suproute');
-
 const router3 = require('./routes/ordersRoutes');
 const router4 = require('./routes/feedbackRouter');
-
 const imageRoutes = require("./routes/imageRoutes");
 const inquiryRoute = require('./routes/inquiryRoute');
 const gemrouter = require('./routes/gemRoutes');
-
 const router6 = require('./routes/materialRouter');
-const useRouter7 = require('./routes/useMaterialRouter')
-
-//emp routes
+const useRouter7 = require('./routes/useMaterialRouter');
 const employeeRoutes = require('./routes/employee.route');
-
-//password recover
 const emailRoutes = require('./routes/emailRoutes');
+
+// CSRF protection middleware
+const csurfProtection = csurf({
+  cookie: { httpOnly: true, secure: false, sameSite: 'strict' } // secure: true in production
+});
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
-app.use(cors()); // Add this line to enable CORS
+app.use(cors({ credentials: true, origin: 'http://localhost:3000' }));
+app.use(cookieParser());
+
+// CSRF token endpoint with CSRF middleware
+app.get('/api/csrf-token', csurfProtection, (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
@@ -44,45 +46,40 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 // Routes
 app.use('/api', router);
-// app.use('/api/send-verification-code', router);
 app.use('/api/users', router2);
-
 app.use('/api/user', require('./routes/users'));
-
-
 app.use("/", jewlleryRoutes);
 app.use("/get-images", jewlleryRoutes);
-app.use("/upload-image", jewlleryRoutes);
-app.use("/delete-image/:id", jewlleryRoutes);
-app.use("/update-image/:id", jewlleryRoutes);
+app.use('/upload-image', csurfProtection, jewlleryRoutes);
+app.use('/update-image/:id', csurfProtection, jewlleryRoutes);
+app.use('/delete-image/:id', csurfProtection, jewlleryRoutes);
 app.use("/get-item/:id", jewlleryRoutes);
-app.use('/api',suproute);
-app.use('/api',supListRoute);
-
-
-
+app.use('/api', suproute);
+app.use('/api', supListRoute);
 app.use('/api/orders', router3);
-
-
-app.use('/api',router4);
-
-//gem routes
+app.use('/api', router4);
 app.use("/", imageRoutes);
 app.use("/gemget-images", imageRoutes);
-app.use("/gemupload-image", imageRoutes);
-app.use("/gemdelete-image/:id", imageRoutes);
-app.use("/gemupdate-image/:id", imageRoutes);
-
+app.use("/gemupload-image", csurfProtection, imageRoutes);
+app.use("/gemdelete-image/:id", csurfProtection, imageRoutes);
+app.use("/gemupdate-image/:id", csurfProtection, imageRoutes);
 app.use('/api', gemrouter);
 app.use('/api', inquiryRoute);
-
 app.use('/api', router6);
 app.use('/api', useRouter7);
+app.use('/api/employees', employeeRoutes);
+app.use('/api/email', emailRoutes);
 
- app.use('/api/employees', employeeRoutes);
-
- app.use('/api/email', emailRoutes);
-
+// Error handling middleware
+app.use((err, req, res, next) => {
+  if (err.code === 'EBADCSRFTOKEN') {
+    console.error('CSRF validation failed:', req.body, req.headers);
+    res.status(403).json({ error: 'Invalid CSRF token' });
+  } else {
+    console.error('Server error:', err.message);
+    res.status(500).json({ error: 'Server error', message: err.message });
+  }
+});
 
 const PORT = process.env.PORT || 5002;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
