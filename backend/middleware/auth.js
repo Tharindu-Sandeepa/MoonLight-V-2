@@ -1,12 +1,12 @@
-// middleware/auth.js
 const jwt = require('jsonwebtoken');
+const AppError = require('../utils/AppError');
 
 const auth = async (req, res, next) => {
   try {
     const token = req.cookies.accessToken;
     if (!token) {
       console.log('No accessToken cookie found');
-      return res.status(401).json({ message: 'No token, authorization denied' });
+      return next(new AppError('No token, authorization denied', 401));
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -15,7 +15,7 @@ const auth = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Token verification failed:', error.message);
-    res.status(401).json({ message: 'Invalid token' });
+    return next(new AppError('Invalid token', 401));
   }
 };
 
