@@ -70,23 +70,32 @@ mongoose.connect(process.env.MONGODB_URI, {
   .catch((err) => console.error('Failed to connect to MongoDB:', err));
 
 // Routes
-app.use('/api/auth', authRoutes);
+app.use('/api', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/orders', ordersRoutes);
-app.use('/api/feedback', feedbackRouter);
-app.use('/api/suppliers', suproute);
-app.use('/api/supplier-list', supListRoute);
-app.use('/api/gems', gemRoutes);
-app.use('/api/inquiries', inquiryRoute);
-app.use('/api/materials', materialRouter);
-app.use('/api/use-materials', useMaterialRouter);
+app.use('/api', feedbackRouter);
+app.use('/api', suproute);
+app.use('/api', supListRoute);
+app.use('/api', gemRoutes);
+app.use('/api', inquiryRoute);
+app.use('/api', materialRouter);
+app.use('/api', useMaterialRouter);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/email', emailRoutes);
 
 // Jewellery and Image routes
-app.use('/api/jewellery', jewlleryRoutes);
-app.use('/api/images', imageRoutes);
+app.use('/', jewlleryRoutes);
+app.use('/get-images', jewlleryRoutes);
+app.use('/upload-image', jewlleryRoutes);
+app.use('/delete-image/:id', jewlleryRoutes);
+app.use('/update-image/:id', jewlleryRoutes);
+app.use('/get-item/:id', jewlleryRoutes);
+app.use('/', imageRoutes);
+app.use('/gemget-images', imageRoutes);
+app.use('/gemupload-image', imageRoutes);
+app.use('/gemdelete-image/:id', imageRoutes);
+app.use('/gemupdate-image/:id', imageRoutes);
 
 // Google Auth Routes
 app.get('/api/auth/google',
@@ -96,7 +105,7 @@ app.get('/api/auth/google',
 // Google Auth Callback
 app.get('/api/auth/google/callback',
   passport.authenticate('google', { failureRedirect: '/api/login', session: false }),
-  async (req, res, next) => {
+  async (req, res) => {
     try {
       const User = require('./models/User');
       const accessToken = jwt.sign({ userId: req.user._id }, process.env.JWT_SECRET, {
@@ -106,9 +115,8 @@ app.get('/api/auth/google/callback',
         expiresIn: '7d',
       });
 
-      // Store refresh token in the database
+      // Store refresh token
       const user = await User.findById(req.user._id);
-      user.refreshTokens = user.refreshTokens || [];
       user.refreshTokens.push(refreshToken);
       await user.save();
 
@@ -124,13 +132,13 @@ app.get('/api/auth/google/callback',
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'Strict',
-        maxAge: 15 * 60 * 1000, // 15 minutes
+        maxAge: 15 * 60 * 1000,
       });
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'Strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
       console.log('Google callback cookies set:', {
@@ -142,18 +150,17 @@ app.get('/api/auth/google/callback',
 
       res.redirect(`http://localhost:3000/auth/callback?username=${encodeURIComponent(req.user.username)}&type=${encodeURIComponent(req.user.type)}`);
     } catch (error) {
-      next(error); // Pass to global error handler
+      console.error('Error in Google callback:', error);
+      res.status(500).send('Internal server error');
     }
   }
 );
 
-// Unhandled routes handler
-app.all('*', (req, res, next) => {
-  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ message: 'Server Error' });
 });
-
-// Global error handler
-app.use(errorHandler);
 
 const PORT = process.env.PORT || 5002;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
