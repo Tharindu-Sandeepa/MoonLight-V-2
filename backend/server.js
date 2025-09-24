@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: './.env' });
 
 const cookieParser = require('cookie-parser');
+const csurf = require('csurf');
 const passport = require('./config/passport');
 const jwt = require('jsonwebtoken');
 
@@ -40,13 +41,22 @@ console.log('Environment Variables:', {
 
 const app = express();
 
+// CSRF protection middleware
+const csurfProtection = csurf({
+  cookie: { httpOnly: true, secure: false, sameSite: 'strict' } // secure: true in production
+});
+
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors({
-  origin: 'http://localhost:3000',
-  credentials: true,
-}));
+app.use(cors({ credentials: true, origin: 'http://localhost:3000' }));
+app.use(cookieParser());
+
+// CSRF token endpoint with CSRF middleware
+app.get('/api/csrf-token', csurfProtection, (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
+
 app.use(passport.initialize());
 
 // Clear residual cookies on every request
@@ -86,15 +96,15 @@ app.use('/api/email', emailRoutes);
 // Jewellery and Image routes
 app.use('/', jewlleryRoutes);
 app.use('/get-images', jewlleryRoutes);
-app.use('/upload-image', jewlleryRoutes);
-app.use('/delete-image/:id', jewlleryRoutes);
-app.use('/update-image/:id', jewlleryRoutes);
+app.use('/upload-image', csurfProtection, jewlleryRoutes);
+app.use('/update-image/:id', csurfProtection, jewlleryRoutes);
+app.use('/delete-image/:id', csurfProtection, jewlleryRoutes);
 app.use('/get-item/:id', jewlleryRoutes);
 app.use('/', imageRoutes);
 app.use('/gemget-images', imageRoutes);
-app.use('/gemupload-image', imageRoutes);
-app.use('/gemdelete-image/:id', imageRoutes);
-app.use('/gemupdate-image/:id', imageRoutes);
+app.use("/gemupload-image", csurfProtection, imageRoutes);
+app.use("/gemdelete-image/:id", csurfProtection, imageRoutes);
+app.use("/gemupdate-image/:id", csurfProtection, imageRoutes);
 
 // Google Auth Routes
 app.get('/api/auth/google',
@@ -157,8 +167,13 @@ app.get('/api/auth/google/callback',
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).json({ message: 'Server Error' });
+  if (err.code === 'EBADCSRFTOKEN') {
+    console.error('CSRF validation failed:', req.body, req.headers);
+    res.status(403).json({ error: 'Invalid CSRF token' });
+  } else {
+    console.error('Server error:', err.message);
+    res.status(500).json({ error: 'Server error', message: err.message });
+  }
 });
 
 const PORT = process.env.PORT || 5002;
