@@ -1,5 +1,7 @@
 const supList = require('../models/supplierlist');
 const AppError = require('../utils/AppError');
+const sanitize = require("mongo-sanitize");
+const mongoose = require("mongoose");
 
 const getSupplier = (req, res, next) => {
     supList.find()
@@ -12,11 +14,32 @@ const getSupplier = (req, res, next) => {
 };
 
 const addSupplier = (req, res, next) => {
+    const sanitizedBody = sanitize(req.body);
+    const { supName, Items, description } = sanitizedBody;
+
+    // Validate required fields
+    if (!supName || !Items) {
+        return next(new AppError('Supplier name and items are required.', 400));
+    }
+
+    // Validate Items is an array and not empty
+    if (!Array.isArray(Items) || Items.length === 0) {
+        return next(new AppError('Items must be a non-empty array.', 400));
+    }
+
+    // Validate each item in the array
+    for (let item of Items) {
+        if (typeof item !== 'string' || item.trim() === '') {
+            return next(new AppError('All items must be non-empty strings.', 400));
+        }
+    }
+
     const newSupplier = new supList({
-        supName: req.body.supName,
-        Items: req.body.Items,
-        description: req.body.description,
+        supName: supName,
+        Items: Items,
+        description: description,
     });
+    
     newSupplier.save()
         .then(response => {
             res.json({ response })
@@ -27,8 +50,34 @@ const addSupplier = (req, res, next) => {
 }
 
 const updateSupplier = (req, res, next) => {
-    const { _id, supName, Items, description} = req.body;
-    supList.updateOne({ _id: _id}, { 
+    const sanitizedBody = sanitize(req.body);
+    const { _id, supName, Items, description } = sanitizedBody;
+
+    // Validate required ID field
+    if (!_id) {
+        return next(new AppError('Supplier ID is required.', 400));
+    }
+
+    // Validate MongoDB ObjectId format
+    if (!mongoose.isValidObjectId(_id)) {
+        return next(new AppError('Invalid supplier ID format.', 400));
+    }
+
+    // Validate Items if provided
+    if (Items && (!Array.isArray(Items) || Items.length === 0)) {
+        return next(new AppError('Items must be a non-empty array.', 400));
+    }
+
+    // Validate each item in the array if provided
+    if (Items) {
+        for (let item of Items) {
+            if (typeof item !== 'string' || item.trim() === '') {
+                return next(new AppError('All items must be non-empty strings.', 400));
+            }
+        }
+    }
+
+    supList.updateOne({ _id: _id }, { 
         $set: { 
             supName: supName,
             Items: Items,
@@ -36,6 +85,9 @@ const updateSupplier = (req, res, next) => {
         }
     })
     .then(response => {
+        if (response.matchedCount === 0) {
+            return next(new AppError('Supplier not found.', 404));
+        }
         res.json({ response })
     })
     .catch(error => {
@@ -44,9 +96,24 @@ const updateSupplier = (req, res, next) => {
 }
 
 const deleteSupplier = (req, res, next) => {
-    const _id = req.body._id;
-    supList.deleteOne({ _id: _id})
+    const sanitizedBody = sanitize(req.body);
+    const { _id } = sanitizedBody;
+
+    // Validate required ID field
+    if (!_id) {
+        return next(new AppError('Supplier ID is required.', 400));
+    }
+
+    // Validate MongoDB ObjectId format
+    if (!mongoose.isValidObjectId(_id)) {
+        return next(new AppError('Invalid supplier ID format.', 400));
+    }
+
+    supList.deleteOne({ _id: _id })
         .then(response => {
+            if (response.deletedCount === 0) {
+                return next(new AppError('Supplier not found.', 404));
+            }
             res.json({ response })
         })
         .catch(error => {
